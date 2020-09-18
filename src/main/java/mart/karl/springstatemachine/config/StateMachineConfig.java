@@ -73,7 +73,24 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
         .withExternal()
         .source(PaymentState.NEW)
         .target(PaymentState.PRE_AUTH_ERROR)
-        .event(PaymentEvent.PRE_AUTH_DECLINED);
+        .event(PaymentEvent.PRE_AUTH_DECLINED)
+        // PRE_AUTH to AUTH
+        .and()
+        .withExternal()
+        .source(PaymentState.PRE_AUTH)
+        .target(PaymentState.PRE_AUTH)
+        .event(PaymentEvent.AUTHORIZE)
+        .action(authAction())
+        .and()
+        .withExternal()
+        .source(PaymentState.PRE_AUTH)
+        .target(PaymentState.AUTH)
+        .event(PaymentEvent.AUTH_APPROVED)
+        .and()
+        .withExternal()
+        .source(PaymentState.PRE_AUTH)
+        .target(PaymentState.AUTH_ERROR)
+        .event(PaymentEvent.AUTH_DECLINED);
   }
 
   private Action<PaymentState, PaymentEvent> preAuthAction() {
@@ -81,11 +98,33 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
       log.debug("PreAuth was called.");
       final PaymentEvent paymentEvent;
       if (new Random().nextInt(10) < 8) {
-        log.debug("Approved!!");
+        log.debug("PreAuth approved!!");
         paymentEvent = PaymentEvent.PRE_AUTH_APPROVED;
       } else {
-        log.debug("Declined. No credit!!");
+        log.debug("PreAuth declined. No credit!!");
         paymentEvent = PaymentEvent.PRE_AUTH_DECLINED;
+      }
+      stateContext
+          .getStateMachine()
+          .sendEvent(
+              MessageBuilder.withPayload(paymentEvent)
+                  .setHeader(
+                      PaymentServiceImpl.PAYMENT_ID_HEADER,
+                      stateContext.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
+                  .build());
+    };
+  }
+
+  private Action<PaymentState, PaymentEvent> authAction() {
+    return stateContext -> {
+      log.debug("Auth was called.");
+      final PaymentEvent paymentEvent;
+      if (new Random().nextInt(10) < 8) {
+        log.debug("Auth approved!!");
+        paymentEvent = PaymentEvent.AUTH_APPROVED;
+      } else {
+        log.debug("Auth declined. No credit!!");
+        paymentEvent = PaymentEvent.AUTH_DECLINED;
       }
       stateContext
           .getStateMachine()
