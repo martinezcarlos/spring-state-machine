@@ -1,0 +1,3 @@
+logging:
+  level:
+    mart.karl.springstatemachine: debug
